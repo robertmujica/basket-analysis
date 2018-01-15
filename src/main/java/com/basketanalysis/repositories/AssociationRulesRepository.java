@@ -46,7 +46,7 @@ public class AssociationRulesRepository {
 		}
 	}
 
-	public void insertRules(Rule<String> rule, Connection connection, SegmentedBasketItem segmentedBasketItem) throws SQLException {
+	public void insertRules(Rule<String> rule, Connection connection, SegmentedBasketItem segmentedBasketItem, Long itemsetFrequency) throws SQLException {
 		PreparedStatement sql;
 		try {
 			sql = connection.prepareStatement("INSERT INTO [dbo].[AssociationRulesMaster]\r\n" + 
@@ -57,9 +57,11 @@ public class AssociationRulesRepository {
 					"           ,[CmsSegment]\r\n" + 
 					"           ,[AntecedentItemsCount]\r\n" + 
 					"           ,[Consequent]\r\n" + 
-					"           ,[Confidence])\r\n" + 
+					"           ,[Confidence], "
+					+ 			"[ItemsetFrequency])\r\n" + 
 					"     VALUES\r\n" + 
 					"           (?\r\n" + 
+					"           ,?\r\n" + 
 					"           ,?\r\n" + 
 					"           ,?\r\n" + 
 					"           ,?\r\n" + 
@@ -75,7 +77,8 @@ public class AssociationRulesRepository {
 			sql.setString(5,  segmentedBasketItem.getCmsSegment());
 			sql.setString(6,  Integer.toString(rule.javaAntecedent().size()));
 			sql.setString(7,  rule.javaConsequent().get(0));
-			sql.setString(8, Double.toString(rule.confidence()));
+			sql.setDouble(8, rule.confidence());
+			sql.setLong(9, itemsetFrequency);
 			
 			sql.executeUpdate();
 			ResultSet rs = sql.getGeneratedKeys();

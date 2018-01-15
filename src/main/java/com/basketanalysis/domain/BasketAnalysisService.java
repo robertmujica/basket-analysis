@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Hashtable;
 import java.util.List;
 
 import org.apache.spark.SparkConf;
@@ -14,6 +15,8 @@ import org.apache.spark.mllib.fpm.AssociationRules;
 import org.apache.spark.mllib.fpm.FPGrowth;
 import org.apache.spark.mllib.fpm.FPGrowthModel;
 
+import com.basketanalysis.entities.FrequentItemset;
+import com.basketanalysis.entities.FrequentItemsetsResponse;
 import com.basketanalysis.entities.SegmentedBasketItem;
 import com.basketanalysis.repositories.AssociationRulesRepository;
 import com.basketanalysis.repositories.BasketItemRepository;
@@ -23,6 +26,7 @@ import scala.Console;
 public class BasketAnalysisService {
 	
 	public void calculateAssociationRules() throws SQLException {
+		long startTime = System.currentTimeMillis();
 		SparkConf conf = new SparkConf().setMaster("local").setAppName("BasketAnalysis");
 		JavaSparkContext sc = new JavaSparkContext(conf);
 		
@@ -33,6 +37,7 @@ public class BasketAnalysisService {
 		
 		ArrayList<SegmentedBasketItem> segmentedBasketItems = basketItemRepositor.getSegmentedBasketItems(connection);
 		
+		int totalRules = 0;
 		for ( SegmentedBasketItem segmentedBasketItem : segmentedBasketItems) {
 			
 			ArrayList<String> dbTransactions = basketItemRepositor.getTransactions(connection, segmentedBasketItem);
@@ -41,45 +46,57 @@ public class BasketAnalysisService {
 
 			JavaRDD<List<String>> basketTransactions = rddTransactions.map(line -> Arrays.asList(line.split(" ")));
 
-			FPGrowthModel<String> model = generateFrequentItemsets(dbTransactions, basketTransactions);
+			FrequentItemsetsResponse freqItemsetResponse = generateFrequentItemsets(dbTransactions, basketTransactions);
 			
-			generateAssociationRules(connection, segmentedBasketItem, model);
+			totalRules += generateAssociationRules(connection, segmentedBasketItem, freqItemsetResponse);
 			
 		}
 
 		connection.close();
 		sc.stop();
 		sc.close();
+		long endTime = System.currentTimeMillis();
+		Console.println("Total execution time: " + ((endTime - startTime)/1000) + " Total Rules : " + totalRules);
 	}
 
-	private void generateAssociationRules(Connection connection, SegmentedBasketItem segmentedBasketItem, FPGrowthModel<String> model) throws SQLException {
+	private int generateAssociationRules(Connection connection, SegmentedBasketItem segmentedBasketItem, FrequentItemsetsResponse freqItemsetResponse) throws SQLException {
 		AssociationRulesRepository associationRulesRepository = new AssociationRulesRepository();
 		
 		associationRulesRepository.deleteRules(connection, segmentedBasketItem);
 		double minConfidence = 0.8;
 		int rulesCount = 0;
 		for (AssociationRules.Rule<String> rule
-				: model.generateAssociationRules(minConfidence).toJavaRDD().collect()) {
-			associationRulesRepository.insertRules(rule, connection, segmentedBasketItem);
+				: freqItemsetResponse.getModel().generateAssociationRules(minConfidence).toJavaRDD().collect()) {
+			
+			Long itemsetFrequency = freqItemsetResponse.getFrequentItemsets().get(rule.javaAntecedent().hashCode());
+			if(itemsetFrequency != null) {
+				associationRulesRepository.insertRules(rule, connection, segmentedBasketItem, itemsetFrequency);
+			}
+			
 			System.out.println(
 					rule.javaAntecedent() + " => " + rule.javaConsequent() + ", " + rule.confidence());
 			rulesCount++;
 		}
-		Console.print(rulesCount);
+		return rulesCount;
 	}
 
-	private FPGrowthModel<String> generateFrequentItemsets(ArrayList<String> dbTransactions,
+	private FrequentItemsetsResponse generateFrequentItemsets(ArrayList<String> dbTransactions,
 			JavaRDD<List<String>> basketTransactions) {
+		
 		double minSupport = calculateMinSupport(dbTransactions.size());
 		FPGrowth fpg = new FPGrowth()
-				.setMinSupport(0.2)
+				.setMinSupport(0.5)
 				.setNumPartitions(10);
+		
 		FPGrowthModel<String> model = fpg.run(basketTransactions);
+		Hashtable<Integer, Long> frequentItemsets = new Hashtable<Integer, Long>();
 
 		for (FPGrowth.FreqItemset<String> itemset: model.freqItemsets().toJavaRDD().collect()) {
+			frequentItemsets.put(itemset.javaItems().hashCode(), itemset.freq());
 			System.out.println("[" + itemset.javaItems() + "], " + itemset.freq());
 		}
-		return model;
+		
+		return new FrequentItemsetsResponse(frequentItemsets, model);
 	}
 	
 	private static double calculateMinSupport(int transactionsCount) {
