@@ -13,9 +13,9 @@ public class BasketItemRepository {
 	public ArrayList<SegmentedBasketItem> getSegmentedBasketItems(Connection connection) throws SQLException {
 
 		PreparedStatement sql = connection
-				.prepareStatement("select Region, Country, Language, SalesSegment, CmsSegment from dbo.BasketItem (nolock)\r\n" + 
+				.prepareStatement("select Region, Country, Language, SalesSegment from dbo.BasketItem (nolock)\r\n" + 
 						"where Region is not null and RTRIM(LTRIM(Region)) <> ''"
-						+ "group by Region, Country, Language, SalesSegment, CmsSegment");
+						+ "group by Region, Country, Language, SalesSegment");
 
 		ResultSet result = sql.executeQuery();
 		ArrayList<SegmentedBasketItem> items = new ArrayList<SegmentedBasketItem>();
@@ -25,7 +25,7 @@ public class BasketItemRepository {
 			item.setCountry(result.getString(2));
 			item.setLanguage(result.getString(3));
 			item.setSalesSegment(result.getString(4));
-			item.setCmsSegment(result.getString(5));
+			//item.setCmsSegment(result.getString(5));
 			items.add(item);
 		}
 		
@@ -37,7 +37,7 @@ public class BasketItemRepository {
 		PreparedStatement sql = connection.prepareStatement("select distinct BeaconId, OrderCode from dbo.BasketItem\r\n" + 
 				"where BeaconId in (\r\n" + 
 				"select BeaconId from [dbo].[BasketItem]\r\n" + 
-				"where OrderCode is not null and RTRIM(LTRIM(OrderCode)) <> '' and Region = ? and Country = ? and Language = ? and SalesSegment = ? and CmsSegment = ?\r\n" + 
+				"where OrderCode is not null and RTRIM(LTRIM(OrderCode)) <> '' and Region = ? and Country = ? and Language = ? and SalesSegment = ?\r\n" + 
 				"group by BeaconId\r\n" + 
 				"having count(OrderCode) >= 2)");
 		
@@ -45,7 +45,7 @@ public class BasketItemRepository {
 		sql.setString(2, segmentedBasketItem.getCountry());
 		sql.setString(3,  segmentedBasketItem.getLanguage());
 		sql.setString(4, segmentedBasketItem.getSalesSegment());
-		sql.setString(5, segmentedBasketItem.getCmsSegment());
+		//sql.setString(5, segmentedBasketItem.getCmsSegment());
 
 		ResultSet result = sql.executeQuery();
 		ArrayList<String> orderItems = new ArrayList<String>();

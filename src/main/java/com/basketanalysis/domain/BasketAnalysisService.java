@@ -63,7 +63,7 @@ public class BasketAnalysisService {
 		AssociationRulesRepository associationRulesRepository = new AssociationRulesRepository();
 		
 		associationRulesRepository.deleteRules(connection, segmentedBasketItem);
-		double minConfidence = 0.8;
+		double minConfidence = 0.7;
 		int rulesCount = 0;
 		for (AssociationRules.Rule<String> rule
 				: freqItemsetResponse.getModel().generateAssociationRules(minConfidence).toJavaRDD().collect()) {
@@ -85,8 +85,7 @@ public class BasketAnalysisService {
 		
 		double minSupport = calculateMinSupport(dbTransactions.size());
 		FPGrowth fpg = new FPGrowth()
-				.setMinSupport(0.5)
-				.setNumPartitions(10);
+				.setMinSupport(0.5);
 		
 		FPGrowthModel<String> model = fpg.run(basketTransactions);
 		Hashtable<Integer, Long> frequentItemsets = new Hashtable<Integer, Long>();

@@ -74,7 +74,7 @@ public class AssociationRulesRepository {
 			sql.setString(2,  segmentedBasketItem.getCountry());
 			sql.setString(3, segmentedBasketItem.getLanguage());
 			sql.setString(4,  segmentedBasketItem.getSalesSegment());
-			sql.setString(5,  segmentedBasketItem.getCmsSegment());
+			sql.setString(5,  ""); //segmentedBasketItem.getCmsSegment());
 			sql.setString(6,  Integer.toString(rule.javaAntecedent().size()));
 			sql.setString(7,  rule.javaConsequent().get(0));
 			sql.setDouble(8, rule.confidence());
