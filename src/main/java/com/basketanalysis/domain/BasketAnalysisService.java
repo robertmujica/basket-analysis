@@ -1,5 +1,7 @@
 package com.basketanalysis.domain;
 
+import java.io.FileNotFoundException;
+import java.io.PrintStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -25,7 +27,9 @@ import scala.Console;
 
 public class BasketAnalysisService {
 	
-	public void calculateAssociationRules() throws SQLException {
+	public void calculateAssociationRules() throws SQLException, Exception {
+		PrintStream fileStream = new PrintStream("analysis.log");
+		System.setOut(fileStream);
 		long startTime = System.currentTimeMillis();
 		SparkConf conf = new SparkConf().setMaster("local").setAppName("BasketAnalysis");
 		JavaSparkContext sc = new JavaSparkContext(conf);
@@ -40,16 +44,22 @@ public class BasketAnalysisService {
 		int totalRules = 0;
 		for ( SegmentedBasketItem segmentedBasketItem : segmentedBasketItems) {
 			
+			
 			ArrayList<String> dbTransactions = basketItemRepositor.getTransactions(connection, segmentedBasketItem);
+			
+			System.out.println("****************  Generating rules for: " + segmentedBasketItem.getRegion() + "- " + segmentedBasketItem.getCountry() + " - " +  
+					segmentedBasketItem.getLanguage() + " - " 
+					+ segmentedBasketItem.getSalesSegment() + " - " + segmentedBasketItem.getCmsSegment() + 
+					" Total transactions :" + dbTransactions.size() + "   ********************");
+			
 			JavaRDD<String> rddTransactions = sc.parallelize(dbTransactions);
-			Console.print(dbTransactions.size());
 
 			JavaRDD<List<String>> basketTransactions = rddTransactions.map(line -> Arrays.asList(line.split(" ")));
 
 			FrequentItemsetsResponse freqItemsetResponse = generateFrequentItemsets(dbTransactions, basketTransactions);
 			
 			totalRules += generateAssociationRules(connection, segmentedBasketItem, freqItemsetResponse);
-			
+			System.out.println("");
 		}
 
 		connection.close();
@@ -63,8 +73,10 @@ public class BasketAnalysisService {
 		AssociationRulesRepository associationRulesRepository = new AssociationRulesRepository();
 		
 		associationRulesRepository.deleteRules(connection, segmentedBasketItem);
-		double minConfidence = 0.7;
+		double minConfidence = 0.4;
 		int rulesCount = 0;
+		
+		System.out.println("Generating Association Rules - Min Confidence : " + minConfidence);
 		for (AssociationRules.Rule<String> rule
 				: freqItemsetResponse.getModel().generateAssociationRules(minConfidence).toJavaRDD().collect()) {
 			
@@ -83,13 +95,14 @@ public class BasketAnalysisService {
 	private FrequentItemsetsResponse generateFrequentItemsets(ArrayList<String> dbTransactions,
 			JavaRDD<List<String>> basketTransactions) {
 		
-		double minSupport = calculateMinSupport(dbTransactions.size());
+		double minSupport = 0.2; //scalculateMinSupport(dbTransactions.size());
 		FPGrowth fpg = new FPGrowth()
-				.setMinSupport(0.5);
+				.setMinSupport(minSupport);
 		
 		FPGrowthModel<String> model = fpg.run(basketTransactions);
 		Hashtable<Integer, Long> frequentItemsets = new Hashtable<Integer, Long>();
 
+		System.out.println("Generating Frequent Itemsets - Min Support: " + minSupport);
 		for (FPGrowth.FreqItemset<String> itemset: model.freqItemsets().toJavaRDD().collect()) {
 			frequentItemsets.put(itemset.javaItems().hashCode(), itemset.freq());
 			System.out.println("[" + itemset.javaItems() + "], " + itemset.freq());
@@ -99,9 +112,9 @@ public class BasketAnalysisService {
 	}
 	
 	private static double calculateMinSupport(int transactionsCount) {
-		double a = 0.002;
-		double b = 0.001;
-		double minSupport = Math.exp((-a * transactionsCount) - b) + 0.0005;
+		double a = 0.001;
+		double b = 0.002;
+		double minSupport = Math.exp((-a * transactionsCount) - b);
 		
 		return minSupport;
 	}
