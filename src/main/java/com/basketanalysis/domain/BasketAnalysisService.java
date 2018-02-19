@@ -47,36 +47,41 @@ public class BasketAnalysisService {
 			
 			ArrayList<String> dbTransactions = basketItemRepositor.getTransactions(connection, segmentedBasketItem);
 			
-			System.out.println("****************  Generating rules for: " + segmentedBasketItem.getRegion() + "- " + segmentedBasketItem.getCountry() + " - " +  
-					segmentedBasketItem.getLanguage() + " - " 
-					+ segmentedBasketItem.getSalesSegment() + " - " + segmentedBasketItem.getCmsSegment() + 
-					" Total transactions :" + dbTransactions.size() + "   ********************");
-			
-			JavaRDD<String> rddTransactions = sc.parallelize(dbTransactions);
+			if(dbTransactions.size() > 2){
+				System.out.println("****************  Generating rules for: " + segmentedBasketItem.getRegion() + "- " + segmentedBasketItem.getCountry() + " - " +  
+						segmentedBasketItem.getLanguage() + " - " 
+						+ segmentedBasketItem.getSalesSegment() + " - " + segmentedBasketItem.getCmsSegment() + " - Catalog: " + segmentedBasketItem.getCatalogId() + 
+						" Total transactions :" + dbTransactions.size() + "   ********************");
+				
+				JavaRDD<String> rddTransactions = sc.parallelize(dbTransactions);
 
-			JavaRDD<List<String>> basketTransactions = rddTransactions.map(line -> Arrays.asList(line.split(" ")));
+				JavaRDD<List<String>> basketTransactions = rddTransactions.map(line -> Arrays.asList(line.split(" ")));
 
-			FrequentItemsetsResponse freqItemsetResponse = generateFrequentItemsets(dbTransactions, basketTransactions);
+				FrequentItemsetsResponse freqItemsetResponse = generateFrequentItemsets(dbTransactions, basketTransactions);
+				
+				totalRules += generateAssociationRules(connection, segmentedBasketItem, freqItemsetResponse);
+				System.out.println("");
+			}
 			
-			totalRules += generateAssociationRules(connection, segmentedBasketItem, freqItemsetResponse);
-			System.out.println("");
 		}
 
 		connection.close();
 		sc.stop();
 		sc.close();
 		long endTime = System.currentTimeMillis();
-		Console.println("Total execution time: " + ((endTime - startTime)/1000) + " Total Rules : " + totalRules);
+		Console.println("Total execution time: " + ((endTime - startTime)/1000) + "seconds Total Rules : " + totalRules);
 	}
 
 	private int generateAssociationRules(Connection connection, SegmentedBasketItem segmentedBasketItem, FrequentItemsetsResponse freqItemsetResponse) throws SQLException {
 		AssociationRulesRepository associationRulesRepository = new AssociationRulesRepository();
 		
 		associationRulesRepository.deleteRules(connection, segmentedBasketItem);
-		double minConfidence = 0.4;
+		double minConfidence = 0.8;
 		int rulesCount = 0;
 		
+		System.out.println(" ");
 		System.out.println("Generating Association Rules - Min Confidence : " + minConfidence);
+		System.out.println(" ");
 		for (AssociationRules.Rule<String> rule
 				: freqItemsetResponse.getModel().generateAssociationRules(minConfidence).toJavaRDD().collect()) {
 			

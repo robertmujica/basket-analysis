@@ -7,6 +7,7 @@ public class SegmentedBasketItem {
 	private String language;
 	private String salesSegment;
 	private String cmsSegment;
+	private int catalogId;
 	
 	public String getRegion() {
 		return region;
@@ -37,6 +38,12 @@ public class SegmentedBasketItem {
 	}
 	public void setCmsSegment(String cmsSegment) {
 		this.cmsSegment = cmsSegment;
+	}
+	public int getCatalogId() {
+		return catalogId;
+	}
+	public void setCatalogId(int catalogId) {
+		this.catalogId = catalogId;
 	}
 	
 }

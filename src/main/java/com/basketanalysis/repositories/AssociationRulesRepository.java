@@ -19,24 +19,26 @@ public class AssociationRulesRepository {
 			PreparedStatement detailSql = connection.prepareStatement("delete [dbo].[AssociationRulesDetail]\r\n" + 
 					"  where AssociationRulesMasterId in (\r\n" + 
 					"  select Id from dbo.AssociationRulesMaster\r\n" + 
-					"  where Region = ? and Country = ? and Language = ? and SalesSegment = ? and CmsSegment = ?)");
+					"  where Region = ? and Country = ? and Language = ? and SalesSegment = ? and CmsSegment = ? and CatalogId = ?)");
 			
 			detailSql.setString(1,  segmentedBasketItem.getRegion());
 			detailSql.setString(2, segmentedBasketItem.getCountry());
 			detailSql.setString(3,  segmentedBasketItem.getLanguage());
 			detailSql.setString(4, segmentedBasketItem.getSalesSegment());
 			detailSql.setString(5,  segmentedBasketItem.getCmsSegment());
+			detailSql.setInt(6,  segmentedBasketItem.getCatalogId());
 			detailSql.executeUpdate();
 			
 			// remove master records
 			PreparedStatement masterSql = connection.prepareStatement("DELETE FROM [dbo].[AssociationRulesMaster]\r\n" + 
-					"      where Region = ? and Country = ? and Language = ? and SalesSegment = ? and CmsSegment = ?");
+					"      where Region = ? and Country = ? and Language = ? and SalesSegment = ? and CmsSegment = ? and CatalogId = ?");
 			
 			masterSql.setString(1,  segmentedBasketItem.getRegion());
 			masterSql.setString(2, segmentedBasketItem.getCountry());
 			masterSql.setString(3,  segmentedBasketItem.getLanguage());
 			masterSql.setString(4, segmentedBasketItem.getSalesSegment());
 			masterSql.setString(5,  segmentedBasketItem.getCmsSegment());
+			masterSql.setInt(6,  segmentedBasketItem.getCatalogId());
 			masterSql.executeUpdate();
 			
 			connection.commit();
@@ -58,7 +60,8 @@ public class AssociationRulesRepository {
 					"           ,[AntecedentItemsCount]\r\n" + 
 					"           ,[Consequent]\r\n" + 
 					"           ,[Confidence], "
-					+ 			"[ItemsetFrequency])\r\n" + 
+					+ 			"[ItemsetFrequency], "
+					+ 			"[CatalogId])\r\n" + 
 					"     VALUES\r\n" + 
 					"           (?\r\n" + 
 					"           ,?\r\n" + 
@@ -68,7 +71,7 @@ public class AssociationRulesRepository {
 					"           ,?\r\n" + 
 					"           ,?\r\n" + 
 					"           ,?\r\n" + 
-					"           ,?)", Statement.RETURN_GENERATED_KEYS);
+					"           ,?, ?)", Statement.RETURN_GENERATED_KEYS);
 			
 			sql.setString(1, segmentedBasketItem.getRegion());
 			sql.setString(2,  segmentedBasketItem.getCountry());
@@ -79,6 +82,7 @@ public class AssociationRulesRepository {
 			sql.setString(7,  rule.javaConsequent().get(0));
 			sql.setDouble(8, rule.confidence());
 			sql.setLong(9, itemsetFrequency);
+			sql.setInt(10, segmentedBasketItem.getCatalogId());
 			
 			sql.executeUpdate();
 			ResultSet rs = sql.getGeneratedKeys();
