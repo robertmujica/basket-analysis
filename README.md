@@ -4,7 +4,7 @@ PoC using SPARK's FP-growth algorithm to generate association rules for Premier 
 
 # Pre-requisites
 
-- Run BasketAnalysisDataImport.exe to import BasketItem records from Boomerang database ( more here: http://git.dell.com/robert-mujica/basket-analysis-data-import )
+- Run BasketAnalysisDataImport.exe to import BasketItem records from Boomerang database ( more here: https://github.com/robertmujica/basket-analysis-data-import )
 
 # Implementation highlights
 
